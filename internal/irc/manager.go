@@ -71,28 +71,39 @@ func (m *Manager) initDB() error {
 }
 
 func (m *Manager) Start() error {
-	configFile := filepath.Join(m.configPath, "inspircd.conf")
-	logger.Debug("Starting InspIRCd with config: %s", configFile)
-	cmd := exec.Command(m.inspircdPath, "--config", configFile)
-	err := cmd.Start()
+	logger.Debug("Starting InspIRCd with path: %s", m.inspircdPath)
+	cmd := exec.Command(m.inspircdPath, "start")
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		logger.Error("Failed to start InspIRCd: %v", err)
+		logger.Error("Failed to start InspIRCd: %v, output: %s", err, string(output))
 	} else {
-		logger.Info("InspIRCd started successfully")
+		logger.Info("InspIRCd started successfully: %s", string(output))
 	}
 	return err
 }
 
 func (m *Manager) Stop() error {
-	cmd := exec.Command("killall", "inspircd")
-	return cmd.Run()
+	logger.Debug("Stopping InspIRCd")
+	cmd := exec.Command(m.inspircdPath, "stop")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.Error("Failed to stop InspIRCd: %v, output: %s", err, string(output))
+	} else {
+		logger.Info("InspIRCd stopped: %s", string(output))
+	}
+	return err
 }
 
 func (m *Manager) Restart() error {
-	if err := m.Stop(); err != nil {
-		return err
+	logger.Debug("Restarting InspIRCd")
+	cmd := exec.Command(m.inspircdPath, "restart")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.Error("Failed to restart InspIRCd: %v, output: %s", err, string(output))
+	} else {
+		logger.Info("InspIRCd restarted: %s", string(output))
 	}
-	return m.Start()
+	return err
 }
 
 func (m *Manager) CreateUser(username, password string) error {
@@ -216,6 +227,17 @@ func (m *Manager) GenerateConfig() error {
         verbose="yes">
 
 #-#-#-#-#-#-#-#-#-#-#-#-  CONNECT  #-#-#-#-#-#-#-#-#-#-#-#-#
+
+# Localhost exempt from connection limits
+<connect
+        name="localhost"
+        allow="127.0.0.1"
+        maxchans="20"
+        timeout="60"
+        limit="5000"
+        localmax="5000"
+        globalmax="5000"
+        exempt="*">
 
 <connect
         name="users"

@@ -257,17 +257,135 @@ curl -X GET http://localhost:3000/api/irc/config
 
 ### System
 
-#### `GET /api/health`
-Health check endpoint.
+#### `GET /api/info`
+Get server information including name and version.
 
 **Request Body:** None
 
 **Response (200 OK):**
+```json
+{
+  "name": "Zubr Server",
+  "version": "0.1.0",
+  "api": "v1"
+}
 ```
-OK
+
+**Example:**
+```bash
+curl http://localhost:3000/api/info
 ```
+
+---
+
+#### `GET /api/health`
+Comprehensive health check endpoint that monitors all system components.
+
+**Request Body:** None
+
+**Response (200 OK - Healthy):**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-11-23T08:30:00Z",
+  "components": {
+    "api": {
+      "status": "up",
+      "message": "API server is running"
+    },
+    "storage": {
+      "status": "up",
+      "message": "Storage operational",
+      "latency": "245.3µs"
+    },
+    "irc_database": {
+      "status": "up",
+      "message": "IRC database operational",
+      "latency": "1.2ms"
+    },
+    "inspircd": {
+      "status": "up",
+      "message": "InspIRCd running and accepting connections",
+      "latency": "3.5ms"
+    }
+  }
+}
+```
+
+**Response (200 OK - Degraded):**
+```json
+{
+  "status": "degraded",
+  "timestamp": "2025-11-23T08:30:00Z",
+  "components": {
+    "api": {
+      "status": "up",
+      "message": "API server is running"
+    },
+    "storage": {
+      "status": "up",
+      "message": "Storage operational",
+      "latency": "245.3µs"
+    },
+    "irc_database": {
+      "status": "up",
+      "message": "IRC database operational",
+      "latency": "1.2ms"
+    },
+    "inspircd": {
+      "status": "degraded",
+      "message": "InspIRCd process running but port 6667 not responding",
+      "latency": "2.1s"
+    }
+  }
+}
+```
+
+**Response (503 Service Unavailable - Unhealthy):**
+```json
+{
+  "status": "unhealthy",
+  "timestamp": "2025-11-23T08:30:00Z",
+  "components": {
+    "api": {
+      "status": "up",
+      "message": "API server is running"
+    },
+    "storage": {
+      "status": "up",
+      "message": "Storage operational",
+      "latency": "245.3µs"
+    },
+    "irc_database": {
+      "status": "up",
+      "message": "IRC database operational",
+      "latency": "1.2ms"
+    },
+    "inspircd": {
+      "status": "down",
+      "message": "InspIRCd process not running"
+    }
+  }
+}
+```
+
+**Component Status Values:**
+- `up` - Component is fully operational
+- `degraded` - Component is running but experiencing issues
+- `down` - Component is not functioning
+
+**Overall Status:**
+- `healthy` - All components are up
+- `degraded` - At least one component is degraded (returns 200)
+- `unhealthy` - At least one component is down (returns 503)
 
 **Example:**
 ```bash
 curl http://localhost:3000/api/health
 ```
+
+**Monitored Components:**
+- **api** - API server status (always up if endpoint responds)
+- **storage** - User data storage (JSON file access)
+- **irc_database** - IRC authentication database (SQLite)
+- **inspircd** - InspIRCd process and port 6667 connectivity

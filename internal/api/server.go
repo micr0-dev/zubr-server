@@ -45,10 +45,10 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/irc/config", s.handleGetIRCConfig)
 
 	// Health check
-	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
-		logger.Debug("Health check requested")
-		w.Write([]byte("OK"))
-	})
+	mux.HandleFunc("/api/health", s.handleHealth)
+
+	// Server info
+	mux.HandleFunc("/api/info", s.handleInfo)
 
 	logger.Info("API server listening on %s", s.addr)
 	return http.ListenAndServe(s.addr, s.loggingMiddleware(s.corsMiddleware(mux)))
