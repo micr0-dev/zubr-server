@@ -6,6 +6,6 @@ domain = "zubr.chat"
 users_file = "data/users.json"
 
 [irc]
-inspircd_path = "/usr/bin/inspircd"
-config_path = "data/irc"
-auto_start = false  # Set to true to automatically start/manage InspIRCd
+inspircd_path = "/home/micr0/Documents/inspircd/run/inspircd"
+config_path = "/home/micr0/Documents/inspircd/run/conf"
+auto_start = true  # Set to true to automatically start/manage InspIRCd

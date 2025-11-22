@@ -29,6 +29,17 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/signup", s.handleSignup)
 	mux.HandleFunc("/api/login", s.handleLogin)
 
+	// User config endpoints (authenticated)
+	mux.HandleFunc("/api/user/config", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			s.authMiddleware(s.handleGetUserConfig)(w, r)
+		} else if r.Method == "PUT" {
+			s.authMiddleware(s.handleUpdateUserConfig)(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
 	// IRC config management endpoints
 	mux.HandleFunc("/api/irc/config/generate", s.handleGenerateIRCConfig)
 	mux.HandleFunc("/api/irc/config", s.handleGetIRCConfig)

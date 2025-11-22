@@ -74,6 +74,124 @@ curl -X POST http://localhost:3000/api/login \
 
 ---
 
+### User Configuration
+
+#### `GET /api/user/config`
+Retrieve the authenticated user's full configuration (for stateless client).
+
+**Authentication:** Required (JWT Bearer token)
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Request Body:** None
+
+**Response (200 OK):**
+```json
+{
+  "log": false,
+  "awayMessage": "",
+  "clientSettings": {},
+  "networks": []
+}
+```
+
+**Example:**
+```bash
+curl -X GET http://localhost:3000/api/user/config \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Missing or invalid token
+- `404 Not Found` - User not found
+- `500 Internal Server Error` - Server error
+
+---
+
+#### `PUT /api/user/config`
+Save the authenticated user's full configuration.
+
+**Authentication:** Required (JWT Bearer token)
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Request Body:**
+```json
+{
+  "log": true,
+  "awayMessage": "",
+  "clientSettings": {
+    "theme": "dark",
+    "notifications": true
+  },
+  "networks": [
+    {
+      "uuid": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Home Server",
+      "host": "127.0.0.1",
+      "port": 6667,
+      "tls": false,
+      "rejectUnauthorized": true,
+      "password": "",
+      "nick": "username",
+      "username": "username",
+      "realname": "username",
+      "sasl": "",
+      "saslAccount": "",
+      "saslPassword": "",
+      "commands": [],
+      "awayMessage": "",
+      "leaveMessage": "",
+      "channels": [
+        {
+          "name": "#general",
+          "key": "",
+          "muted": false
+        }
+      ],
+      "proxyEnabled": false,
+      "proxyHost": "",
+      "proxyPort": 1080,
+      "proxyUsername": "",
+      "proxyPassword": "",
+      "userDisconnected": false,
+      "highlightRegex": "",
+      "ignoreList": []
+    }
+  ]
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Configuration updated successfully"
+}
+```
+
+**Example:**
+```bash
+curl -X PUT http://localhost:3000/api/user/config \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -d '{"log":true,"clientSettings":{},"networks":[]}'
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid request format
+- `401 Unauthorized` - Missing or invalid token
+- `404 Not Found` - User not found
+- `500 Internal Server Error` - Server error
+
+---
+
 ### IRC Configuration
 
 #### `POST /api/irc/config/generate`

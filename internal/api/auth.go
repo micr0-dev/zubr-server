@@ -1,8 +1,10 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -70,6 +72,7 @@ func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 		Email:        req.Email,
 		CreatedAt:    time.Now(),
 		Active:       true, // Auto-activate for now
+		Config:       models.DefaultUserConfig(),
 	}
 
 	logger.Debug("Saving user %s to storage", req.Username)
@@ -167,4 +170,61 @@ func (s *Server) generateToken(user *models.User) (string, error) {
 
 func generateID() string {
 	return time.Now().Format("20060102150405")
+}
+
+// authMiddleware validates JWT token and adds username to context
+func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		logger.Debug("Auth middleware checking token for %s", r.URL.Path)
+
+		// Get token from Authorization header
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			logger.Debug("No Authorization header provided")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// Extract token (format: "Bearer <token>")
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			logger.Debug("Invalid Authorization header format")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		tokenString := parts[1]
+
+		// Parse and validate token
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			return []byte("your-secret-key"), nil // TODO: config
+		})
+
+		if err != nil || !token.Valid {
+			logger.Debug("Invalid token: %v", err)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// Extract username from claims
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			logger.Debug("Invalid token claims")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		username, ok := claims["sub"].(string)
+		if !ok {
+			logger.Debug("No username in token claims")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		logger.Debug("Authenticated user: %s", username)
+
+		// Add username to context
+		ctx := context.WithValue(r.Context(), "username", username)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	}
 }

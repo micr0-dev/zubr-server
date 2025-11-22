@@ -107,3 +107,24 @@ func (s *Store) GetAllUsers() []*models.User {
 	}
 	return users
 }
+
+func (s *Store) UpdateUserConfig(username string, config *models.UserConfig) error {
+	logger.Debug("Updating config for user: %s", username)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	user, ok := s.users[username]
+	if !ok {
+		logger.Error("User %s not found", username)
+		return os.ErrNotExist
+	}
+
+	user.Config = config
+	if err := s.save(); err != nil {
+		logger.Error("Failed to save config for user %s: %v", username, err)
+		return err
+	}
+
+	logger.Debug("Successfully updated config for user: %s", username)
+	return nil
+}
