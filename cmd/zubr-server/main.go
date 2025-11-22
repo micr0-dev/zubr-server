@@ -19,7 +19,6 @@ type Config struct {
 	IRC struct {
 		InspircdPath string `toml:"inspircd_path"`
 		ConfigPath   string `toml:"config_path"`
-		NetworkName  string `toml:"network_name"`
 		AutoStart    bool   `toml:"auto_start"`
 	} `toml:"irc"`
 }
@@ -50,7 +49,6 @@ func main() {
 	ircManager := irc.NewManager(
 		config.IRC.InspircdPath,
 		config.IRC.ConfigPath,
-		config.IRC.NetworkName,
 		config.Server.Domain,
 	)
 

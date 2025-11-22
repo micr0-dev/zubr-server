@@ -8,5 +8,4 @@ users_file = "data/users.json"
 [irc]
 inspircd_path = "/usr/bin/inspircd"
 config_path = "data/irc"
-network_name = "zubr.chat"
 auto_start = false  # Set to true to automatically start/manage InspIRCd

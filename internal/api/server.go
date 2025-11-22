@@ -29,6 +29,10 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/signup", s.handleSignup)
 	mux.HandleFunc("/api/login", s.handleLogin)
 
+	// IRC config management endpoints
+	mux.HandleFunc("/api/irc/config/generate", s.handleGenerateIRCConfig)
+	mux.HandleFunc("/api/irc/config", s.handleGetIRCConfig)
+
 	// Health check
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
 		logger.Debug("Health check requested")

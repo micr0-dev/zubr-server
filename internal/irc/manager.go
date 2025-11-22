@@ -17,16 +17,14 @@ import (
 type Manager struct {
 	inspircdPath string
 	configPath   string
-	networkName  string
 	domain       string
 	db           *sql.DB
 }
 
-func NewManager(inspircdPath, configPath, networkName, domain string) *Manager {
+func NewManager(inspircdPath, configPath, domain string) *Manager {
 	m := &Manager{
 		inspircdPath: inspircdPath,
 		configPath:   configPath,
-		networkName:  networkName,
 		domain:       domain,
 	}
 
@@ -313,7 +311,7 @@ func (m *Manager) GenerateConfig() error {
 
 	data := map[string]string{
 		"domain":      m.domain,
-		"networkName": m.networkName,
+		"networkName": m.domain,
 		"configPath":  m.configPath,
 	}
 
@@ -338,6 +336,11 @@ func (m *Manager) GenerateConfig() error {
 
 	logger.Info("Generated InspIRCd configuration at: %s", configFile)
 	return nil
+}
+
+// GetConfigPath returns the IRC config directory path
+func (m *Manager) GetConfigPath() string {
+	return m.configPath
 }
 
 // Close closes the database connection
