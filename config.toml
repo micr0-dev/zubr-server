@@ -1,0 +1,11 @@
+[server]
+address = "0.0.0.0:3000"
+domain = "zubr.chat"
+
+[storage]
+users_file = "data/users.json"
+
+[irc]
+inspircd_path = "/usr/bin/inspircd"
+config_path = "data/irc"
+network_name = "zubr.chat"

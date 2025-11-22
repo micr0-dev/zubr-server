@@ -1,0 +1,23 @@
+{
+  "micr0": {
+    "id": "20251123003515",
+    "username": "micr0",
+    "password_hash": "$2a$10$941t/sGHqj9Y81LUfs.Ld.PL9Cg3GZkUF3pMZD2plIluZgbd3iH7.",
+    "created_at": "2025-11-23T00:35:15.148591835+10:30",
+    "active": true
+  },
+  "produser": {
+    "id": "20251123005129",
+    "username": "produser",
+    "password_hash": "$2a$10$XaTx.m5BJTsRYlOSzep0F.XvgOYZphQkWHKx1qjOSPrAwz8slmMrO",
+    "created_at": "2025-11-23T00:51:29.476787339+10:30",
+    "active": true
+  },
+  "testuser": {
+    "id": "20251123005043",
+    "username": "testuser",
+    "password_hash": "$2a$10$Ysgx9truMlHzmAlVlC8NGOB7XuY/oAnjJFjtXBGQ9NefM551mmzbe",
+    "created_at": "2025-11-23T00:50:43.534449929+10:30",
+    "active": true
+  }
+}
