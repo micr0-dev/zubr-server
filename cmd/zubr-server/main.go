@@ -20,6 +20,7 @@ type Config struct {
 		InspircdPath string `toml:"inspircd_path"`
 		ConfigPath   string `toml:"config_path"`
 		NetworkName  string `toml:"network_name"`
+		AutoStart    bool   `toml:"auto_start"`
 	} `toml:"irc"`
 }
 
@@ -53,9 +54,17 @@ func main() {
 		config.Server.Domain,
 	)
 
-	// Start IRC server
-	if err := ircManager.Start(); err != nil {
-		logger.Error("Warning: Could not start InspIRCd: %v", err)
+	// Start IRC server (if auto_start is enabled)
+	if config.IRC.AutoStart {
+		logger.Info("Auto-starting InspIRCd...")
+		if err := ircManager.Start(); err != nil {
+			logger.Error("Warning: Could not start InspIRCd: %v", err)
+			logger.Info("You may need to start InspIRCd manually")
+		}
+	} else {
+		logger.Info("InspIRCd auto-start is disabled")
+		logger.Info("Manage InspIRCd separately (systemd, manual, etc.)")
+		logger.Debug("Set 'auto_start = true' in config.toml to enable auto-start")
 	}
 
 	// Start API server
