@@ -55,6 +55,14 @@ func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Determine role - first user is owner, rest are users
+	allUsers := s.store.GetAllUsers()
+	role := models.RoleUser
+	if len(allUsers) == 0 {
+		role = models.RoleOwner
+		logger.Info("First user signing up - assigning Owner role to %s", req.Username)
+	}
+
 	logger.Debug("Hashing password for user %s", req.Username)
 	// Hash password
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -72,6 +80,7 @@ func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 		Email:        req.Email,
 		CreatedAt:    time.Now(),
 		Active:       true, // Auto-activate for now
+		Role:         role,
 		Config:       models.DefaultUserConfig(),
 	}
 
@@ -226,5 +235,49 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// Add username to context
 		ctx := context.WithValue(r.Context(), "username", username)
 		next.ServeHTTP(w, r.WithContext(ctx))
+	}
+}
+
+// requireRole checks if the authenticated user has one of the required roles
+func (s *Server) requireRole(allowedRoles []models.Role) func(http.HandlerFunc) http.HandlerFunc {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return s.authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+			username, ok := r.Context().Value("username").(string)
+			if !ok {
+				logger.Error("Username not found in context")
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			// Get user to check role
+			user, exists := s.store.GetUser(username)
+			if !exists {
+				logger.Error("User %s not found", username)
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			// Check if user has one of the allowed roles
+			hasRole := false
+			for _, role := range allowedRoles {
+				if user.Role == role {
+					hasRole = true
+					break
+				}
+			}
+
+			if !hasRole {
+				logger.Debug("User %s does not have required role. Has: %s, Required: %v", username, user.Role, allowedRoles)
+				http.Error(w, "Forbidden: Insufficient permissions", http.StatusForbidden)
+				return
+			}
+
+			logger.Debug("User %s authorized with role %s", username, user.Role)
+
+			// Add user and role to context for later use
+			ctx := context.WithValue(r.Context(), "user", user)
+			ctx = context.WithValue(ctx, "role", user.Role)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
 	}
 }

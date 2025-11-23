@@ -2,9 +2,11 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/micr0/zubr-server/internal/irc"
 	"github.com/micr0/zubr-server/internal/logger"
+	"github.com/micr0/zubr-server/internal/models"
 	"github.com/micr0/zubr-server/internal/storage"
 )
 
@@ -37,6 +39,30 @@ func (s *Server) Start() error {
 			s.authMiddleware(s.handleUpdateUserConfig)(w, r)
 		} else {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	// User list endpoint (authenticated)
+	mux.HandleFunc("/api/users", s.authMiddleware(s.handleGetUsers))
+
+	// Admin endpoints (require owner or admin role)
+	adminRole := []models.Role{models.RoleOwner, models.RoleAdmin}
+	mux.HandleFunc("/api/admin/users/", func(w http.ResponseWriter, r *http.Request) {
+		// Route based on action suffix
+		if strings.HasSuffix(r.URL.Path, "/promote") && r.Method == "POST" {
+			s.requireRole(adminRole)(s.handlePromoteUser)(w, r)
+		} else if strings.HasSuffix(r.URL.Path, "/demote") && r.Method == "POST" {
+			s.requireRole(adminRole)(s.handleDemoteUser)(w, r)
+		} else if strings.HasSuffix(r.URL.Path, "/ban") && r.Method == "POST" {
+			s.requireRole(adminRole)(s.handleBanUser)(w, r)
+		} else if strings.HasSuffix(r.URL.Path, "/kick") && r.Method == "POST" {
+			s.requireRole(adminRole)(s.handleKickUser)(w, r)
+		} else if strings.HasSuffix(r.URL.Path, "/permissions") && r.Method == "GET" {
+			s.requireRole(adminRole)(s.handleGetUserPermissions)(w, r)
+		} else if r.Method == "DELETE" && !strings.HasSuffix(r.URL.Path, "/") {
+			s.requireRole(adminRole)(s.handleDeleteUser)(w, r)
+		} else {
+			http.Error(w, "Not found", http.StatusNotFound)
 		}
 	})
 

@@ -128,3 +128,86 @@ func (s *Store) UpdateUserConfig(username string, config *models.UserConfig) err
 	logger.Debug("Successfully updated config for user: %s", username)
 	return nil
 }
+
+func (s *Store) UpdateUserRole(username string, role models.Role) error {
+	logger.Debug("Updating role for user %s to %s", username, role)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	user, ok := s.users[username]
+	if !ok {
+		logger.Error("User %s not found", username)
+		return os.ErrNotExist
+	}
+
+	user.Role = role
+	if err := s.save(); err != nil {
+		logger.Error("Failed to save role for user %s: %v", username, err)
+		return err
+	}
+
+	logger.Info("Successfully updated role for user %s to %s", username, role)
+	return nil
+}
+
+func (s *Store) BanUser(username string) error {
+	logger.Debug("Banning user: %s", username)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	user, ok := s.users[username]
+	if !ok {
+		logger.Error("User %s not found", username)
+		return os.ErrNotExist
+	}
+
+	user.Banned = true
+	if err := s.save(); err != nil {
+		logger.Error("Failed to ban user %s: %v", username, err)
+		return err
+	}
+
+	logger.Info("Successfully banned user: %s", username)
+	return nil
+}
+
+func (s *Store) UnbanUser(username string) error {
+	logger.Debug("Unbanning user: %s", username)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	user, ok := s.users[username]
+	if !ok {
+		logger.Error("User %s not found", username)
+		return os.ErrNotExist
+	}
+
+	user.Banned = false
+	if err := s.save(); err != nil {
+		logger.Error("Failed to unban user %s: %v", username, err)
+		return err
+	}
+
+	logger.Info("Successfully unbanned user: %s", username)
+	return nil
+}
+
+func (s *Store) DeleteUser(username string) error {
+	logger.Debug("Deleting user: %s", username)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, ok := s.users[username]; !ok {
+		logger.Error("User %s not found", username)
+		return os.ErrNotExist
+	}
+
+	delete(s.users, username)
+	if err := s.save(); err != nil {
+		logger.Error("Failed to delete user %s: %v", username, err)
+		return err
+	}
+
+	logger.Info("Successfully deleted user: %s", username)
+	return nil
+}

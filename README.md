@@ -74,6 +74,306 @@ curl -X POST http://localhost:3000/api/login \
 
 ---
 
+### User Management
+
+#### `GET /api/users`
+Retrieve list of all users (authenticated).
+
+**Authentication:** Required (JWT Bearer token)
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Request Body:** None
+
+**Response (200 OK):**
+```json
+{
+  "users": [
+    {
+      "id": "20251123032944",
+      "username": "micr0",
+      "email": "micr0@example.com",
+      "created_at": "2025-11-23T03:29:44+10:30",
+      "active": true,
+      "role": "owner"
+    },
+    {
+      "id": "20251123040102",
+      "username": "alice",
+      "email": "alice@example.com",
+      "created_at": "2025-11-23T04:01:02+10:30",
+      "active": true,
+      "role": "user"
+    }
+  ],
+  "total": 2
+}
+```
+
+**Example:**
+```bash
+curl -X GET http://localhost:3000/api/users \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Missing or invalid token
+
+**Note:** Password hashes are never returned for security reasons.
+
+---
+
+### Admin Endpoints
+
+**Authorization:** All admin endpoints require the user to be an Owner or Admin.
+
+**Permission Rules:**
+- Owner can perform any action
+- Admins cannot demote, ban, kick, or delete other admins or the owner
+- Regular users cannot access admin endpoints
+
+#### `POST /api/admin/users/:username/promote`
+Promote a user to admin role.
+
+**Authentication:** Required (JWT Bearer token)
+**Authorization:** Owner or Admin
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "User promoted to admin"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:3000/api/admin/users/alice/promote \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid user ID
+- `401 Unauthorized` - Missing or invalid token
+- `403 Forbidden` - Insufficient permissions
+- `404 Not Found` - User not found
+
+---
+
+#### `POST /api/admin/users/:username/demote`
+Demote an admin to regular user role.
+
+**Authentication:** Required (JWT Bearer token)
+**Authorization:** Owner or Admin (only Owner can demote admins)
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "User demoted to regular user"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:3000/api/admin/users/alice/demote \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid user ID
+- `401 Unauthorized` - Missing or invalid token
+- `403 Forbidden` - Insufficient permissions (only owner can demote admins)
+- `404 Not Found` - User not found
+
+**Permission Note:** Admins cannot demote other admins; only the owner can demote admins.
+
+---
+
+#### `POST /api/admin/users/:username/ban`
+Ban a user from the server (prevents login and removes from IRC).
+
+**Authentication:** Required (JWT Bearer token)
+**Authorization:** Owner or Admin (only Owner can ban admins)
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "User banned successfully"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:3000/api/admin/users/alice/ban \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid user ID
+- `401 Unauthorized` - Missing or invalid token
+- `403 Forbidden` - Insufficient permissions (only owner can ban admins)
+- `404 Not Found` - User not found
+
+**Note:** Banning a user also removes them from the IRC server.
+
+---
+
+#### `POST /api/admin/users/:username/kick`
+Kick a user from the IRC server (temporary - they can reconnect).
+
+**Authentication:** Required (JWT Bearer token)
+**Authorization:** Owner or Admin (only Owner can kick admins)
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "User kicked from IRC server (they can reconnect)"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:3000/api/admin/users/alice/kick \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid user ID
+- `401 Unauthorized` - Missing or invalid token
+- `403 Forbidden` - Insufficient permissions (only owner can kick admins)
+- `404 Not Found` - User not found
+
+**Note:** This is a temporary action. The user can reconnect to IRC after being kicked.
+
+---
+
+#### `DELETE /api/admin/users/:username`
+Permanently delete a user account.
+
+**Authentication:** Required (JWT Bearer token)
+**Authorization:** Owner or Admin (only Owner can delete admins)
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "User account deleted successfully"
+}
+```
+
+**Example:**
+```bash
+curl -X DELETE http://localhost:3000/api/admin/users/alice \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid user ID
+- `401 Unauthorized` - Missing or invalid token
+- `403 Forbidden` - Insufficient permissions (only owner can delete admins)
+- `404 Not Found` - User not found
+
+**Warning:** This action is permanent and cannot be undone. The user's account and IRC access will be completely removed.
+
+---
+
+#### `GET /api/admin/users/:username/permissions`
+Check what actions the authenticated user can perform on a target user.
+
+**Authentication:** Required (JWT Bearer token)
+**Authorization:** Owner or Admin
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Response (200 OK) - Owner checking regular user:**
+```json
+{
+  "target_user": "alice",
+  "target_role": "user",
+  "can_promote": true,
+  "can_demote": false,
+  "can_ban": true,
+  "can_kick": true,
+  "can_delete": true
+}
+```
+
+**Response (200 OK) - Admin checking another admin:**
+```json
+{
+  "target_user": "bob",
+  "target_role": "admin",
+  "can_promote": false,
+  "can_demote": false,
+  "can_ban": false,
+  "can_kick": false,
+  "can_delete": false
+}
+```
+
+**Response (200 OK) - Owner checking admin:**
+```json
+{
+  "target_user": "bob",
+  "target_role": "admin",
+  "can_promote": false,
+  "can_demote": true,
+  "can_ban": true,
+  "can_kick": true,
+  "can_delete": true
+}
+```
+
+**Example:**
+```bash
+curl -X GET http://localhost:3000/api/admin/users/alice/permissions \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid user ID
+- `401 Unauthorized` - Missing or invalid token
+- `403 Forbidden` - Insufficient permissions (must be owner or admin)
+- `404 Not Found` - User not found
+
+**Use Case:** This endpoint is useful for frontend applications to determine which action buttons to display or enable for a given user in the UI.
+
+---
+
 ### User Configuration
 
 #### `GET /api/user/config`
