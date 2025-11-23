@@ -18,6 +18,7 @@ type User struct {
 	CreatedAt    time.Time   `json:"created_at"`
 	Active       bool        `json:"active"`
 	Banned       bool        `json:"banned"`
+	Pending      bool        `json:"pending"` // True if awaiting approval (approval mode)
 	Role         Role        `json:"role"`
 	Config       *UserConfig `json:"config,omitempty"`
 }

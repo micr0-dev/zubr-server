@@ -14,9 +14,10 @@ import (
 )
 
 type SignupRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email    string `json:"email,omitempty"`
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	Email       string `json:"email,omitempty"`
+	InviteToken string `json:"invite_token,omitempty"`
 }
 
 type LoginRequest struct {
@@ -55,6 +56,36 @@ func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get instance settings to check signup mode
+	settings := s.store.GetSettings()
+	logger.Debug("Signup mode: %s", settings.SignupMode)
+
+	// Validate signup mode requirements
+	if settings.SignupMode == models.SignupModeInvite {
+		// Invite mode: require invite token
+		if req.InviteToken == "" {
+			logger.Debug("Invite token required but not provided")
+			http.Error(w, "Invite token required", http.StatusForbidden)
+			return
+		}
+
+		// Validate invite token
+		invite, exists := s.store.GetInviteToken(req.InviteToken)
+		if !exists {
+			logger.Debug("Invalid invite token: %s", req.InviteToken)
+			http.Error(w, "Invalid invite token", http.StatusForbidden)
+			return
+		}
+
+		if invite.Used {
+			logger.Debug("Invite token already used: %s", req.InviteToken)
+			http.Error(w, "Invite token already used", http.StatusForbidden)
+			return
+		}
+
+		logger.Debug("Valid invite token provided: %s", req.InviteToken)
+	}
+
 	// Determine role - first user is owner, rest are users
 	allUsers := s.store.GetAllUsers()
 	role := models.RoleUser
@@ -72,6 +103,21 @@ func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Determine user status based on signup mode
+	var active, pending bool
+	switch settings.SignupMode {
+	case models.SignupModePublic:
+		active = true
+		pending = false
+	case models.SignupModeApproval:
+		active = false
+		pending = true
+		logger.Debug("Approval mode: user %s will be created as pending", req.Username)
+	case models.SignupModeInvite:
+		active = true
+		pending = false
+	}
+
 	// Create user
 	user := &models.User{
 		ID:           generateID(),
@@ -79,7 +125,8 @@ func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 		PasswordHash: string(hash),
 		Email:        req.Email,
 		CreatedAt:    time.Now(),
-		Active:       true, // Auto-activate for now
+		Active:       active,
+		Pending:      pending,
 		Role:         role,
 		Config:       models.DefaultUserConfig(),
 	}
@@ -91,12 +138,24 @@ func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.Debug("Creating IRC account for user %s", req.Username)
-	// Create IRC account
-	if err := s.ircManager.CreateUser(req.Username, req.Password); err != nil {
-		logger.Error("Failed to create IRC account for %s: %v", req.Username, err)
-		http.Error(w, "Error creating IRC account", http.StatusInternalServerError)
-		return
+	// Mark invite token as used if in invite mode
+	if settings.SignupMode == models.SignupModeInvite && req.InviteToken != "" {
+		if err := s.store.UseInviteToken(req.InviteToken, req.Username); err != nil {
+			logger.Error("Failed to mark invite token as used: %v", err)
+			// Don't fail signup, just log the error
+		}
+	}
+
+	// Only create IRC account if user is active
+	if active {
+		logger.Debug("Creating IRC account for user %s", req.Username)
+		if err := s.ircManager.CreateUser(req.Username, req.Password); err != nil {
+			logger.Error("Failed to create IRC account for %s: %v", req.Username, err)
+			http.Error(w, "Error creating IRC account", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		logger.Debug("User %s is pending approval, skipping IRC account creation", req.Username)
 	}
 
 	logger.Debug("Generating JWT token for user %s", req.Username)
@@ -108,7 +167,7 @@ func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.Info("User %s successfully signed up", req.Username)
+	logger.Info("User %s successfully signed up (active: %v, pending: %v)", req.Username, active, pending)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(AuthResponse{
 		Token:    token,
@@ -231,6 +290,61 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		logger.Debug("Authenticated user: %s", username)
+
+		// Add username to context
+		ctx := context.WithValue(r.Context(), "username", username)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	}
+}
+
+// optionalAuthMiddleware tries to authenticate but doesn't fail if no token is provided
+func (s *Server) optionalAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Get token from Authorization header
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			// No auth provided, continue without setting username in context
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Extract token (format: "Bearer <token>")
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			// Invalid format, continue without auth
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		tokenString := parts[1]
+
+		// Parse and validate token
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			return []byte("your-secret-key"), nil // TODO: config
+		})
+
+		if err != nil || !token.Valid {
+			// Invalid token, continue without auth
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Extract username from claims
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			// Invalid claims, continue without auth
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		username, ok := claims["sub"].(string)
+		if !ok {
+			// No username in claims, continue without auth
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		logger.Debug("Optional auth: authenticated user: %s", username)
 
 		// Add username to context
 		ctx := context.WithValue(r.Context(), "username", username)

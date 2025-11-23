@@ -45,8 +45,8 @@ func (s *Server) Start() error {
 		}
 	})
 
-	// User list endpoint (authenticated)
-	mux.HandleFunc("/api/users", s.authMiddleware(s.handleGetUsers))
+	// User list endpoint (conditionally authenticated based on signup mode)
+	mux.HandleFunc("/api/users", s.optionalAuthMiddleware(s.handleGetUsers))
 
 	// Admin endpoints (require owner or admin role)
 	adminRole := []models.Role{models.RoleOwner, models.RoleAdmin}
@@ -60,6 +60,8 @@ func (s *Server) Start() error {
 			s.requireRole(adminRole)(s.handleBanUser)(w, r)
 		} else if strings.HasSuffix(r.URL.Path, "/kick") && r.Method == "POST" {
 			s.requireRole(adminRole)(s.handleKickUser)(w, r)
+		} else if strings.HasSuffix(r.URL.Path, "/approve") && r.Method == "POST" {
+			s.requireRole(adminRole)(s.handleApproveUser)(w, r)
 		} else if strings.HasSuffix(r.URL.Path, "/permissions") && r.Method == "GET" {
 			s.requireRole(adminRole)(s.handleGetUserPermissions)(w, r)
 		} else if r.Method == "DELETE" && !strings.HasSuffix(r.URL.Path, "/") {
@@ -68,6 +70,9 @@ func (s *Server) Start() error {
 			http.Error(w, "Not found", http.StatusNotFound)
 		}
 	})
+
+	// Admin invite generation endpoint
+	mux.HandleFunc("/api/admin/invites/generate", s.requireRole(adminRole)(s.handleGenerateInvite))
 
 	// Instance settings endpoints (require owner or admin role)
 	mux.HandleFunc("/api/instance/settings", func(w http.ResponseWriter, r *http.Request) {

@@ -14,7 +14,8 @@ Create a new user account.
 {
   "username": "string (required)",
   "password": "string (required)",
-  "email": "string (optional)"
+  "email": "string (optional)",
+  "invite_token": "string (required in invite mode)"
 }
 ```
 
@@ -35,8 +36,14 @@ curl -X POST http://localhost:3000/api/signup \
 
 **Error Responses:**
 - `400 Bad Request` - Missing username or password
+- `403 Forbidden` - Invite token required (invite mode) or invalid/used invite token
 - `409 Conflict` - Username already taken
 - `500 Internal Server Error` - Server error
+
+**Signup Modes:**
+- **Public mode**: No invite token required, user is immediately active
+- **Approval mode**: No invite token required, user is pending until approved by admin
+- **Invite mode**: Valid invite token required, user is immediately active
 
 ---
 
@@ -116,9 +123,11 @@ curl -X GET http://localhost:3000/api/user/me \
 ### User Management
 
 #### `GET /api/users`
-Retrieve list of all users (authenticated).
+Retrieve list of all users.
 
-**Authentication:** Required (JWT Bearer token)
+**Authentication:** Conditionally required based on signup mode
+- **Public mode**: No authentication required
+- **Approval/Invite mode**: Authentication required (JWT Bearer token)
 
 **Request Headers:**
 ```
@@ -413,6 +422,78 @@ curl -X GET http://localhost:3000/api/admin/users/alice/permissions \
 
 ---
 
+#### `POST /api/admin/users/:username/approve`
+Approve a pending user (approval mode only).
+
+**Authentication:** Required (JWT Bearer token)
+**Authorization:** Owner or Admin
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "User approved and activated"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:3000/api/admin/users/alice/approve \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+**Error Responses:**
+- `400 Bad Request` - Invalid username or user is not pending approval
+- `401 Unauthorized` - Missing or invalid token
+- `403 Forbidden` - Insufficient permissions
+- `404 Not Found` - User not found
+- `500 Internal Server Error` - Failed to approve user
+
+**Note:** When a user is approved, they become active and can log in. IRC account creation for approved users currently requires manual intervention due to password hashing.
+
+---
+
+#### `POST /api/admin/invites/generate`
+Generate a new invite token for user registration (invite mode).
+
+**Authentication:** Required (JWT Bearer token)
+**Authorization:** Owner or Admin
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Request Body:** None
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "token": "Abc123XyZ7890123"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:3000/api/admin/invites/generate \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Missing or invalid token
+- `403 Forbidden` - Insufficient permissions
+- `500 Internal Server Error` - Failed to generate invite
+
+**Note:** Each invite token can only be used once. Tokens are stored in `data/invites.json`.
+
+---
+
 ### User Configuration
 
 #### `GET /api/user/config`
@@ -618,18 +699,23 @@ curl -X PATCH http://localhost:3000/api/instance/settings \
 - `500 Internal Server Error` - Failed to save settings
 
 **Valid `signup_mode` values:**
-- `"public"` - Anyone can sign up (default)
-- `"approval"` - Signups require admin approval (not yet implemented)
-- `"invite"` - Users can only join via invite (not yet implemented)
+- `"public"` - Anyone can sign up, user directory is public (default)
+- `"approval"` - Signups create pending users requiring admin approval, authenticated user directory
+- `"invite"` - Users can only join via invite token, authenticated user directory
 
 **Note:** You can update any combination of fields. Only the fields you include will be updated.
+
+**Signup Mode Behaviors:**
+- **Public**: Users are immediately active, GET /api/users is public
+- **Approval**: Users are pending until approved via `/api/admin/users/:username/approve`, GET /api/users requires auth
+- **Invite**: Users must provide valid invite token (generated via `/api/admin/invites/generate`), GET /api/users requires auth
 
 ---
 
 ### System
 
 #### `GET /api/info`
-Get server information including name and version.
+Get server information including name, version, and signup mode.
 
 **Request Body:** None
 
@@ -637,8 +723,9 @@ Get server information including name and version.
 ```json
 {
   "name": "Zubr Server",
-  "version": "0.1.0",
-  "api": "v1"
+  "version": "0.2.0",
+  "api": "v1",
+  "signup_mode": "public"
 }
 ```
 
@@ -646,6 +733,11 @@ Get server information including name and version.
 ```bash
 curl http://localhost:3000/api/info
 ```
+
+**Signup Mode Values:**
+- `"public"` - Anyone can sign up
+- `"approval"` - Signups require admin approval
+- `"invite"` - Invite-only registration
 
 ---
 

@@ -23,7 +23,25 @@ type UserListResponse struct {
 }
 
 func (s *Server) handleGetUsers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	logger.Debug("Get users request from %s", r.RemoteAddr)
+
+	// Check signup mode to determine auth requirement
+	settings := s.store.GetSettings()
+
+	// In non-public modes, authentication is required
+	if settings.SignupMode != models.SignupModePublic {
+		// Check if auth was provided (via context from middleware)
+		if r.Context().Value("username") == nil {
+			logger.Debug("Auth required but not provided for user list in %s mode", settings.SignupMode)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+	}
 
 	// Get all users from storage
 	users := s.store.GetAllUsers()

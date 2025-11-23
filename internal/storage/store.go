@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/micr0/zubr-server/internal/logger"
 	"github.com/micr0/zubr-server/internal/models"
@@ -14,9 +15,11 @@ import (
 type Store struct {
 	usersFile      string
 	settingsFile   string
+	invitesFile    string
 	ircConfigPath  string
 	users          map[string]*models.User
 	settings       *models.InstanceSettings
+	invites        map[string]*models.InviteToken
 	mu             sync.RWMutex
 }
 
@@ -25,9 +28,11 @@ func New(usersFile, ircConfigPath string) (*Store, error) {
 	s := &Store{
 		usersFile:     usersFile,
 		settingsFile:  "data/settings.json",
+		invitesFile:   "data/invites.json",
 		ircConfigPath: ircConfigPath,
 		users:         make(map[string]*models.User),
 		settings:      models.DefaultInstanceSettings(),
+		invites:       make(map[string]*models.InviteToken),
 	}
 
 	// Load existing users
@@ -39,6 +44,12 @@ func New(usersFile, ircConfigPath string) (*Store, error) {
 	// Load existing settings
 	if err := s.loadSettings(); err != nil && !os.IsNotExist(err) {
 		logger.Error("Failed to load settings from %s: %v", s.settingsFile, err)
+		return nil, err
+	}
+
+	// Load existing invites
+	if err := s.loadInvites(); err != nil && !os.IsNotExist(err) {
+		logger.Error("Failed to load invites from %s: %v", s.invitesFile, err)
 		return nil, err
 	}
 
@@ -344,5 +355,117 @@ func (s *Store) UpdateSettings(updates map[string]interface{}) error {
 	}
 
 	logger.Info("Successfully updated instance settings")
+	return nil
+}
+
+func (s *Store) loadInvites() error {
+	logger.Debug("Loading invite tokens from file: %s", s.invitesFile)
+	data, err := os.ReadFile(s.invitesFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			logger.Debug("Invites file does not exist yet, starting with empty invites")
+		}
+		return err
+	}
+
+	if err := json.Unmarshal(data, &s.invites); err != nil {
+		logger.Error("Failed to unmarshal invites data: %v", err)
+		return err
+	}
+
+	logger.Debug("Loaded %d invite tokens", len(s.invites))
+	return nil
+}
+
+func (s *Store) saveInvites() error {
+	logger.Debug("Saving %d invite tokens to file: %s", len(s.invites), s.invitesFile)
+	data, err := json.MarshalIndent(s.invites, "", "  ")
+	if err != nil {
+		logger.Error("Failed to marshal invites data: %v", err)
+		return err
+	}
+
+	// Ensure directory exists
+	if err := os.MkdirAll("data", 0755); err != nil {
+		logger.Error("Failed to create data directory: %v", err)
+		return err
+	}
+
+	if err := os.WriteFile(s.invitesFile, data, 0644); err != nil {
+		logger.Error("Failed to write invites file: %v", err)
+		return err
+	}
+
+	logger.Debug("Successfully saved invite tokens")
+	return nil
+}
+
+func (s *Store) CreateInviteToken(token *models.InviteToken) error {
+	logger.Debug("Creating invite token: %s", token.Token)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.invites[token.Token] = token
+	if err := s.saveInvites(); err != nil {
+		logger.Error("Failed to save invite token %s: %v", token.Token, err)
+		return err
+	}
+
+	logger.Info("Successfully created invite token: %s", token.Token)
+	return nil
+}
+
+func (s *Store) GetInviteToken(token string) (*models.InviteToken, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	invite, ok := s.invites[token]
+	return invite, ok
+}
+
+func (s *Store) UseInviteToken(token, username string) error {
+	logger.Debug("Marking invite token %s as used by %s", token, username)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	invite, ok := s.invites[token]
+	if !ok {
+		logger.Error("Invite token %s not found", token)
+		return os.ErrNotExist
+	}
+
+	invite.Used = true
+	invite.UsedBy = username
+	invite.UsedAt = time.Now()
+
+	if err := s.saveInvites(); err != nil {
+		logger.Error("Failed to save invite token update: %v", err)
+		return err
+	}
+
+	logger.Info("Successfully marked invite token %s as used", token)
+	return nil
+}
+
+func (s *Store) ApproveUser(username string) error {
+	logger.Debug("Approving user: %s", username)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	user, ok := s.users[username]
+	if !ok {
+		logger.Error("User %s not found", username)
+		return os.ErrNotExist
+	}
+
+	user.Pending = false
+	user.Active = true
+
+	if err := s.save(); err != nil {
+		logger.Error("Failed to approve user %s: %v", username, err)
+		return err
+	}
+
+	logger.Info("Successfully approved user: %s", username)
 	return nil
 }
