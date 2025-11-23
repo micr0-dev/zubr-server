@@ -187,7 +187,8 @@ func (m *Manager) GenerateConfig() error {
         name="irc.{{.domain}}"
         description="{{.networkName}} IRC Server"
         network="{{.networkName}}"
-        id="001">
+        id="001"
+        motd="{{.configPath}}/motd.txt">
 
 #-#-#-#-#-#-#-#-#-#-#-  ADMIN INFO  #-#-#-#-#-#-#-#-#-#-#-#-#-
 

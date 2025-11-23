@@ -39,7 +39,7 @@ func main() {
 	logger.Debug("IRC config path: %s", config.IRC.ConfigPath)
 
 	// Initialize storage
-	store, err := storage.New(config.Storage.UsersFile)
+	store, err := storage.New(config.Storage.UsersFile, config.IRC.ConfigPath)
 	if err != nil {
 		logger.Fatal("Error initializing storage: %v", err)
 	}

@@ -31,6 +31,9 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/signup", s.handleSignup)
 	mux.HandleFunc("/api/login", s.handleLogin)
 
+	// Current user endpoint (authenticated)
+	mux.HandleFunc("/api/user/me", s.authMiddleware(s.handleGetMe))
+
 	// User config endpoints (authenticated)
 	mux.HandleFunc("/api/user/config", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
@@ -66,9 +69,16 @@ func (s *Server) Start() error {
 		}
 	})
 
-	// IRC config management endpoints
-	mux.HandleFunc("/api/irc/config/generate", s.handleGenerateIRCConfig)
-	mux.HandleFunc("/api/irc/config", s.handleGetIRCConfig)
+	// Instance settings endpoints (require owner or admin role)
+	mux.HandleFunc("/api/instance/settings", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			s.requireRole(adminRole)(s.handleGetInstanceSettings)(w, r)
+		} else if r.Method == "PATCH" {
+			s.requireRole(adminRole)(s.handleUpdateInstanceSettings)(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 
 	// Health check
 	mux.HandleFunc("/api/health", s.handleHealth)

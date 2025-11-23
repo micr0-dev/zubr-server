@@ -74,6 +74,45 @@ curl -X POST http://localhost:3000/api/login \
 
 ---
 
+#### `GET /api/user/me`
+Get the current authenticated user's information.
+
+**Authentication:** Required (JWT Bearer token)
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Request Body:** None
+
+**Response (200 OK):**
+```json
+{
+  "id": "20251123032944",
+  "username": "micr0",
+  "email": "micr0@example.com",
+  "created_at": "2025-11-23T03:29:44+10:30",
+  "active": true,
+  "banned": false,
+  "role": "owner"
+}
+```
+
+**Example:**
+```bash
+curl -X GET http://localhost:3000/api/user/me \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Missing or invalid token
+- `404 Not Found` - User not found
+
+**Note:** Password hash is never included for security reasons.
+
+---
+
 ### User Management
 
 #### `GET /api/users`
@@ -492,66 +531,98 @@ curl -X PUT http://localhost:3000/api/user/config \
 
 ---
 
-### IRC Configuration
+### Instance Settings
 
-#### `POST /api/irc/config/generate`
-Generate InspIRCd configuration file. This creates the necessary config for the IRC server based on your domain settings.
+#### `GET /api/instance/settings`
+Get current instance settings.
 
-// TODO will be more extensive later
+**Authentication:** Required (JWT Bearer token)
+**Authorization:** Owner or Admin
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
 
 **Request Body:** None
 
 **Response (200 OK):**
 ```json
 {
-  "success": true,
-  "message": "InspIRCd configuration generated successfully"
+  "signup_mode": "public",
+  "motd": "Welcome to micr0.dev! Please be nice.",
+  "domain": "micr0.dev",
+  "network_name": "micr0net"
 }
 ```
 
 **Example:**
 ```bash
-curl -X POST http://localhost:3000/api/irc/config/generate
+curl -X GET http://localhost:3000/api/instance/settings \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
 
 **Error Responses:**
-- `500 Internal Server Error` - Failed to generate config
-```json
-{
-  "success": false,
-  "message": "Failed to generate IRC config: <error details>"
-}
-```
+- `401 Unauthorized` - Missing or invalid token
+- `403 Forbidden` - Insufficient permissions (must be owner or admin)
+
+**Settings Fields:**
+- `signup_mode` - Controls user registration: `"public"`, `"approval"`, or `"invite"`
+- `motd` - Message of the day shown to users
+- `domain` - Server domain name
+- `network_name` - IRC network name
 
 ---
 
-#### `GET /api/irc/config`
-Retrieve the current InspIRCd configuration.
+#### `PATCH /api/instance/settings`
+Update instance settings (partial update).
 
-**Request Body:** None
+**Authentication:** Required (JWT Bearer token)
+**Authorization:** Owner or Admin
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Request Body (partial updates allowed):**
+```json
+{
+  "signup_mode": "approval",
+  "motd": "New welcome message!"
+}
+```
 
 **Response (200 OK):**
 ```json
 {
-  "success": true,
-  "message": "IRC configuration retrieved successfully",
-  "config": "<config format=\"xml\">...</config>"
+  "signup_mode": "approval",
+  "motd": "New welcome message!",
+  "domain": "micr0.dev",
+  "network_name": "micr0net"
 }
 ```
 
 **Example:**
 ```bash
-curl -X GET http://localhost:3000/api/irc/config
+curl -X PATCH http://localhost:3000/api/instance/settings \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -d '{"signup_mode":"approval","motd":"New message"}'
 ```
 
 **Error Responses:**
-- `404 Not Found` - Config file doesn't exist yet
-```json
-{
-  "success": false,
-  "message": "IRC config not found. Generate it first using POST /api/irc/config/generate"
-}
-```
+- `400 Bad Request` - Invalid request format or invalid signup_mode value
+- `401 Unauthorized` - Missing or invalid token
+- `403 Forbidden` - Insufficient permissions (must be owner or admin)
+- `500 Internal Server Error` - Failed to save settings
+
+**Valid `signup_mode` values:**
+- `"public"` - Anyone can sign up (default)
+- `"approval"` - Signups require admin approval (not yet implemented)
+- `"invite"` - Users can only join via invite (not yet implemented)
+
+**Note:** You can update any combination of fields. Only the fields you include will be updated.
 
 ---
 
