@@ -1,26 +1,32 @@
-# Zubr Server
+<h1 align="center">
+	<img
+		width="300"
+		alt="Zubr"
+		src="https://raw.githubusercontent.com/micr0-dev/zubr-web/master/client/img/zubr-logo-vertical.svg">
+</h1>
 
-A decentralized IRC-powered chat application backend.
+<h3 align="center">
+	Bringing IRC into the modern era
+</h3>
 
-## Features
+<p align="center">
+	<strong>
+		<a href="https://github.com/micr0-dev/zubr-server">Zubr Server</a>
+		•
+		<a href="https://github.com/micr0-dev/zubr-web">Zubr Web</a>
+		•
+		<a href="https://github.com/micr0-dev/zubr-server/issues">Issues</a>
+	</strong>
+</p>
 
-### Configuration
+## What is Zubr?
 
-Zubr regenerates the InspIRCd configuration on every startup:
-- Config is automatically updated with latest settings
-- If InspIRCd is already running, it will be restarted to apply the new config
-- Ensures configuration is always up-to-date without manual intervention
+**Zubr** is a hard fork of [The Lounge](https://github.com/thelounge/thelounge), designed to modernize the IRC experience while maintaining compatibility with the IRC protocol. Zubr consists of two main components:
 
-**Channel Configuration**
+- **Zubr Server**: A modern IRC server wrapper powered by insIRCd with enhanced features, built-in user management and authentication flow.
+- **[Zubr Web](https://github.com/micr0-dev/zubr-web)**: A feature-rich web client that works Zubr servers.
 
-All user-created channels automatically get `+nt` modes:
-- `+n` - No external messages (users must join to send)
-- `+t` - Topic protection (only ops can change topic)
-- Set via `defaultmodes="nt"` in InspIRCd config
-- No permanent/pre-made channels - users create channels as needed
-- First user to join a non-existent channel creates it
-
-Users can use standard IRC commands to manage channel modes and permissions.
+The point is to vertically integrate the IRC experience, making it more user-friendly and accessible to a broader audience.
 
 ## API Endpoints
 
