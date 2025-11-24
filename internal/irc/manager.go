@@ -253,7 +253,8 @@ func (m *Manager) GenerateConfig() error {
 <module name="password_hash">
 <module name="sha256">
 
-# Channel moderation modules (removed - allowing all users to speak)
+# Channel management modules
+<module name="permchannels">
 
 #-#-#-#-#-#-#-#-#-#-#-  DATABASE  #-#-#-#-#-#-#-#-#-#-#-#-#-
 
@@ -317,6 +318,10 @@ func (m *Manager) GenerateConfig() error {
 
 <channels
         users="20">
+
+#-#-#-#-#-#-#-#-#-#-#-  PERMANENT CHANNELS  #-#-#-#-#-#-#-#-#-#
+
+<permchannels channel="#general" modes="nt" topic="Welcome to Zubr!">
 
 #-#-#-#-#-#-#-#-#-#-#-#-  DNS  #-#-#-#-#-#-#-#-#-#-#-#-#-#-
 
