@@ -48,6 +48,9 @@ func (s *Server) Start() error {
 	// User list endpoint (conditionally authenticated based on signup mode)
 	mux.HandleFunc("/api/users", s.optionalAuthMiddleware(s.handleGetUsers))
 
+	// Voice endpoint not needed - using InspIRCd's +M mode instead
+	// (Only authenticated users can speak in +M channels)
+
 	// Admin endpoints (require owner or admin role)
 	adminRole := []models.Role{models.RoleOwner, models.RoleAdmin}
 	mux.HandleFunc("/api/admin/users/", func(w http.ResponseWriter, r *http.Request) {

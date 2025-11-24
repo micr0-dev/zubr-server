@@ -51,16 +51,10 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	// Determine overall status
 	health.Status = determineOverallStatus(health.Components)
 
-	// Set HTTP status code based on health
-	statusCode := http.StatusOK
-	if health.Status == "unhealthy" {
-		statusCode = http.StatusServiceUnavailable
-	} else if health.Status == "degraded" {
-		statusCode = http.StatusOK // Still return 200 for degraded
-	}
-
+	// Always return 200 OK with detailed status information
+	// This allows monitoring tools to always get the full health breakdown
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(health)
 
 	logger.Debug("Health check completed: %s", health.Status)

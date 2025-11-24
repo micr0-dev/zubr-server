@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -290,11 +291,12 @@ func (s *Server) handleKickUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Temporarily remove from IRC (they can reconnect)
-	if err := s.ircManager.DeleteUser(targetUsername); err != nil {
+	// Kick user from IRC server (temporary - they can reconnect)
+	kickReason := fmt.Sprintf("Kicked by %s", requester.Username)
+	if err := s.ircManager.KickUser(targetUsername, kickReason); err != nil {
 		logger.Error("Failed to kick %s from IRC: %v", targetUsername, err)
-		http.Error(w, "Failed to kick user from IRC", http.StatusInternalServerError)
-		return
+		// Continue anyway - the IRC kick is best effort
+		logger.Debug("Continuing despite IRC kick failure")
 	}
 
 	logger.Info("User %s kicked from IRC by %s", targetUsername, requester.Username)

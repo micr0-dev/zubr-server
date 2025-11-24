@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	ServerName    = "Zubr Server"
-	ServerVersion = "0.2.0"
+	ServerName       = "Zubr Server"
+	ServerVersion    = "0.3.0"
+	ServerSourceCode = "https://github.com/micr0-dev/zubr-server"
 )
 
 type ServerInfo struct {
@@ -17,6 +18,7 @@ type ServerInfo struct {
 	Version    string `json:"version"`
 	API        string `json:"api"`
 	SignupMode string `json:"signup_mode"`
+	SourceCode string `json:"source_code"`
 }
 
 func (s *Server) handleInfo(w http.ResponseWriter, r *http.Request) {
@@ -30,6 +32,7 @@ func (s *Server) handleInfo(w http.ResponseWriter, r *http.Request) {
 		Version:    ServerVersion,
 		API:        "v1",
 		SignupMode: string(settings.SignupMode),
+		SourceCode: ServerSourceCode,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

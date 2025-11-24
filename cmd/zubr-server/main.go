@@ -52,6 +52,12 @@ func main() {
 		config.Server.Domain,
 	)
 
+	// Generate InspIRCd configuration
+	logger.Info("Generating InspIRCd configuration...")
+	if err := ircManager.GenerateConfig(); err != nil {
+		logger.Fatal("Failed to generate InspIRCd config: %v", err)
+	}
+
 	// Start IRC server (if auto_start is enabled)
 	if config.IRC.AutoStart {
 		logger.Info("Auto-starting InspIRCd...")

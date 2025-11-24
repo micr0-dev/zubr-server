@@ -2,6 +2,26 @@
 
 A decentralized IRC-powered chat application backend.
 
+## Features
+
+### Configuration
+
+Zubr regenerates the InspIRCd configuration on every startup:
+- Config is automatically updated with latest settings
+- If InspIRCd is already running, it will be restarted to apply the new config
+- Ensures configuration is always up-to-date without manual intervention
+
+**Channel Configuration**
+
+All user-created channels automatically get `+nt` modes:
+- `+n` - No external messages (users must join to send)
+- `+t` - Topic protection (only ops can change topic)
+- Set via `defaultmodes="nt"` in InspIRCd config
+- No permanent/pre-made channels - users create channels as needed
+- First user to join a non-existent channel creates it
+
+Users can use standard IRC commands to manage channel modes and permissions.
+
 ## API Endpoints
 
 ### Authentication
@@ -715,7 +735,7 @@ curl -X PATCH http://localhost:3000/api/instance/settings \
 ### System
 
 #### `GET /api/info`
-Get server information including name, version, and signup mode.
+Get server information including name, version, signup mode, and source code URL.
 
 **Request Body:** None
 
@@ -723,9 +743,10 @@ Get server information including name, version, and signup mode.
 ```json
 {
   "name": "Zubr Server",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "api": "v1",
-  "signup_mode": "public"
+  "signup_mode": "public",
+  "source_code": "https://github.com/micr0-dev/zubr-server"
 }
 ```
 
@@ -804,7 +825,7 @@ Comprehensive health check endpoint that monitors all system components.
 }
 ```
 
-**Response (503 Service Unavailable - Unhealthy):**
+**Response (200 OK - Unhealthy):**
 ```json
 {
   "status": "unhealthy",
@@ -839,8 +860,10 @@ Comprehensive health check endpoint that monitors all system components.
 
 **Overall Status:**
 - `healthy` - All components are up
-- `degraded` - At least one component is degraded (returns 200)
-- `unhealthy` - At least one component is down (returns 503)
+- `degraded` - At least one component is degraded
+- `unhealthy` - At least one component is down
+
+**Note:** The health endpoint always returns HTTP 200 OK with detailed status information, regardless of the overall health status. This allows monitoring tools to always parse the response and get the full breakdown of what's working and what's not.
 
 **Example:**
 ```bash
