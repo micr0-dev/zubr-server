@@ -37,7 +37,44 @@ func NewManager(inspircdPath, configPath, domain, apiAddr string) *Manager {
 		logger.Error("Failed to initialize IRC user database: %v", err)
 	}
 
+	// Generate TLS certificates if they don't exist
+	if err := m.ensureTLSCerts(); err != nil {
+		logger.Error("Failed to generate TLS certificates: %v", err)
+	}
+
 	return m
+}
+
+// ensureTLSCerts generates self-signed TLS certificates if they don't exist
+func (m *Manager) ensureTLSCerts() error {
+	certPath := filepath.Join(m.configPath, "cert.pem")
+	keyPath := filepath.Join(m.configPath, "key.pem")
+
+	// Check if certs already exist
+	if _, err := os.Stat(certPath); err == nil {
+		if _, err := os.Stat(keyPath); err == nil {
+			logger.Debug("TLS certificates already exist")
+			return nil
+		}
+	}
+
+	logger.Info("Generating self-signed TLS certificates...")
+
+	// Generate using openssl
+	cmd := exec.Command("openssl", "req", "-x509", "-newkey", "rsa:4096",
+		"-keyout", keyPath,
+		"-out", certPath,
+		"-days", "365",
+		"-nodes",
+		"-subj", fmt.Sprintf("/CN=%s", m.domain))
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to generate certificates: %w, output: %s", err, string(output))
+	}
+
+	logger.Info("TLS certificates generated at %s and %s", certPath, keyPath)
+	return nil
 }
 
 // initDB initializes the SQLite database for IRC user authentication
@@ -229,6 +266,12 @@ func (m *Manager) GenerateConfig() error {
         port="6667"
         type="clients">
 
+<bind
+        address=""
+        port="6697"
+        type="clients"
+        ssl="openssl">
+
 #-#-#-#-#-#-#-#-#-#-#-  LOADMODULE  #-#-#-#-#-#-#-#-#-#-#-#-
 # SQL authentication modules
 <module name="sqlauth">
@@ -247,6 +290,18 @@ func (m *Manager) GenerateConfig() error {
 <module name="ircv3_servertime">
 <module name="ircv3_msgid">
 <module name="setname">
+
+# TLS/SSL support
+<module name="ssl_openssl">
+
+#-#-#-#-#-#-#-#-#-#-#-  TLS CONFIG  #-#-#-#-#-#-#-#-#-#-#-#-
+
+<openssl
+        certfile="{{.configPath}}/cert.pem"
+        keyfile="{{.configPath}}/key.pem"
+        dhfile=""
+        hash="sha256"
+        ciphersuites="TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256">
 
 #-#-#-#-#-#-#-#-#-#-#-  DATABASE  #-#-#-#-#-#-#-#-#-#-#-#-#-
 
