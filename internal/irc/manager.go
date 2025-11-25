@@ -19,15 +19,17 @@ type Manager struct {
 	inspircdPath string
 	configPath   string
 	domain       string
+	apiAddr      string
 	db           *sql.DB
 	bot          *Bot
 }
 
-func NewManager(inspircdPath, configPath, domain string) *Manager {
+func NewManager(inspircdPath, configPath, domain, apiAddr string) *Manager {
 	m := &Manager{
 		inspircdPath: inspircdPath,
 		configPath:   configPath,
 		domain:       domain,
+		apiAddr:      apiAddr,
 	}
 
 	// Initialize the IRC users database
@@ -229,8 +231,11 @@ func (m *Manager) GenerateConfig() error {
         name="irc.{{.domain}}"
         description="{{.networkName}} IRC Server"
         network="{{.networkName}}"
-        id="001"
-        motd="{{.configPath}}/motd.txt">
+        id="001">
+
+#-#-#-#-#-#-#-#-#-#-#-  DYNAMIC MOTD  #-#-#-#-#-#-#-#-#-#-#-
+
+<execfiles motd="curl -s http://{{.apiAddr}}/api/motd.txt">
 
 #-#-#-#-#-#-#-#-#-#-#-  ADMIN INFO  #-#-#-#-#-#-#-#-#-#-#-#-#-
 
@@ -255,6 +260,7 @@ func (m *Manager) GenerateConfig() error {
 
 # Channel management modules
 <module name="permchannels">
+<module name="chanhistory">
 
 #-#-#-#-#-#-#-#-#-#-#-  DATABASE  #-#-#-#-#-#-#-#-#-#-#-#-#-
 
@@ -319,9 +325,17 @@ func (m *Manager) GenerateConfig() error {
 <channels
         users="20">
 
+#-#-#-#-#-#-#-#-#-#-#-  CHANNEL HISTORY  #-#-#-#-#-#-#-#-#-#-#
+
+<chanhistory maxduration="4w"
+             maxlines="100"
+             prefixmsg="yes"
+             savefrombots="yes"
+             sendtobots="yes">
+
 #-#-#-#-#-#-#-#-#-#-#-  PERMANENT CHANNELS  #-#-#-#-#-#-#-#-#-#
 
-<permchannels channel="#general" modes="nt" topic="Welcome to Zubr!">
+<permchannels channel="#general" modes="+ntH 100:4w" topic="Welcome to Zubr!">
 
 #-#-#-#-#-#-#-#-#-#-#-#-  DNS  #-#-#-#-#-#-#-#-#-#-#-#-#-#-
 
@@ -339,7 +353,7 @@ func (m *Manager) GenerateConfig() error {
         hostintopic="yes"
         pingwarning="15"
         serverpingfreq="60"
-        defaultmodes="nt">
+        defaultmodes="+ntH 100:4w">
 
 #-#-#-#-#-#-#-#-#-#-#-  PERFORMANCE  #-#-#-#-#-#-#-#-#-#-#-
 
@@ -373,10 +387,14 @@ func (m *Manager) GenerateConfig() error {
         maxaway="200">
 `
 
+	// Replace 0.0.0.0 with 127.0.0.1 for curl to work
+	apiAddr := strings.Replace(m.apiAddr, "0.0.0.0", "127.0.0.1", 1)
+
 	data := map[string]string{
 		"domain":      m.domain,
 		"networkName": m.domain,
 		"configPath":  m.configPath,
+		"apiAddr":     apiAddr,
 	}
 
 	t, err := template.New("config").Parse(tmpl)
@@ -405,6 +423,17 @@ func (m *Manager) GenerateConfig() error {
 // GetConfigPath returns the IRC config directory path
 func (m *Manager) GetConfigPath() string {
 	return m.configPath
+}
+
+// WriteMOTD writes the message of the day to the motd.txt file
+func (m *Manager) WriteMOTD(motd string) error {
+	motdFile := filepath.Join(m.configPath, "motd.txt")
+	if err := os.WriteFile(motdFile, []byte(motd), 0644); err != nil {
+		logger.Error("Failed to write MOTD file: %v", err)
+		return err
+	}
+	logger.Debug("Wrote MOTD to: %s", motdFile)
+	return nil
 }
 
 // GiveVoice grants voice (+v) to a user in a channel

@@ -94,6 +94,9 @@ func (s *Server) Start() error {
 	// Server info
 	mux.HandleFunc("/api/info", s.handleInfo)
 
+	// MOTD (plain text for InspIRCd)
+	mux.HandleFunc("/api/motd.txt", s.handleMOTD)
+
 	logger.Info("API server listening on %s", s.addr)
 	return http.ListenAndServe(s.addr, s.loggingMiddleware(s.corsMiddleware(mux)))
 }

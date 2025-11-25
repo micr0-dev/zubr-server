@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/BurntSushi/toml"
 	"github.com/micr0/zubr-server/internal/api"
 	"github.com/micr0/zubr-server/internal/irc"
@@ -50,6 +52,7 @@ func main() {
 		config.IRC.InspircdPath,
 		config.IRC.ConfigPath,
 		config.Server.Domain,
+		config.Server.Address,
 	)
 
 	// Generate InspIRCd configuration
@@ -57,6 +60,18 @@ func main() {
 	if err := ircManager.GenerateConfig(); err != nil {
 		logger.Fatal("Failed to generate InspIRCd config: %v", err)
 	}
+
+	// Start API server first (in goroutine so InspIRCd can curl it)
+	logger.Info("Starting API server on %s", config.Server.Address)
+	server := api.NewServer(store, ircManager, config.Server.Address)
+	go func() {
+		if err := server.Start(); err != nil {
+			logger.Fatal("Error starting API server: %v", err)
+		}
+	}()
+
+	// Wait for API to be ready before starting InspIRCd
+	time.Sleep(500 * time.Millisecond)
 
 	// Start IRC server (if auto_start is enabled)
 	if config.IRC.AutoStart {
@@ -71,10 +86,6 @@ func main() {
 		logger.Debug("Set 'auto_start = true' in config.toml to enable auto-start")
 	}
 
-	// Start API server
-	logger.Info("Starting API server on %s", config.Server.Address)
-	server := api.NewServer(store, ircManager, config.Server.Address)
-	if err := server.Start(); err != nil {
-		logger.Fatal("Error starting API server: %v", err)
-	}
+	// Keep main running
+	select {}
 }
