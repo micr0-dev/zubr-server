@@ -1,6 +1,6 @@
 [server]
 address = "0.0.0.0:3000"
-domain = "zubr.chat"
+domain = "default.domain"
 
 [storage]
 database_path = "data/zubr.db"
@@ -8,4 +8,4 @@ database_path = "data/zubr.db"
 [irc]
 inspircd_path = "/home/micr0/Documents/inspircd/run/inspircd"
 config_path = "/home/micr0/Documents/inspircd/run/conf"
-auto_start = true  # Set to true to automatically start/manage InspIRCd
+auto_start = true                                             # Set to true to automatically start/manage InspIRCd

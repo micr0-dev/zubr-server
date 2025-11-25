@@ -11,8 +11,8 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/micr0/zubr-server/internal/logger"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/micr0/zubr-server/internal/logger"
 )
 
 type Manager struct {
@@ -101,28 +101,6 @@ func (m *Manager) Start() error {
 
 	logger.Info("InspIRCd started successfully: %s", outputStr)
 
-	// Bot is not needed - using InspIRCd's built-in +M mode (m_services_account)
-	// Channels with +M mode only allow authenticated users to speak
-	// Unauthenticated users can join and read but not send messages
-
-	return nil
-}
-
-// startBot initializes and connects the services bot
-func (m *Manager) startBot() error {
-	// Create bot user in database first
-	botPassword := "zubrservices"
-	if err := m.CreateUser("ZubrBot", botPassword); err != nil {
-		logger.Error("Failed to create bot user: %v", err)
-	}
-
-	// Create and connect bot
-	m.bot = NewBot("127.0.0.1:6667", "ZubrBot", botPassword)
-	if err := m.bot.Connect(); err != nil {
-		return fmt.Errorf("failed to connect bot: %w", err)
-	}
-
-	logger.Info("Services bot connected successfully")
 	return nil
 }
 
@@ -228,7 +206,7 @@ func (m *Manager) GenerateConfig() error {
 #-#-#-#-#-#-#-#-#-#-  SERVER DESCRIPTION  #-#-#-#-#-#-#-#-#-#-#
 
 <server
-        name="irc.{{.domain}}"
+        name="{{.domain}}"
         description="{{.networkName}} IRC Server"
         network="{{.networkName}}"
         id="001">
@@ -291,7 +269,8 @@ func (m *Manager) GenerateConfig() error {
 # Localhost exempt from connection limits
 <connect
         name="localhost"
-        allow="127.0.0.1"
+        allow="127.0.0.0/8"
+        resolvehostnames="no"
         maxchans="20"
         timeout="60"
         limit="5000"
