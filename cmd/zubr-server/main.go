@@ -16,7 +16,7 @@ type Config struct {
 		Domain  string `toml:"domain"`
 	} `toml:"server"`
 	Storage struct {
-		UsersFile string `toml:"users_file"`
+		DatabasePath string `toml:"database_path"`
 	} `toml:"storage"`
 	IRC struct {
 		InspircdPath string `toml:"inspircd_path"`
@@ -41,7 +41,7 @@ func main() {
 	logger.Debug("IRC config path: %s", config.IRC.ConfigPath)
 
 	// Initialize storage
-	store, err := storage.New(config.Storage.UsersFile, config.IRC.ConfigPath)
+	store, err := storage.New(config.Storage.DatabasePath, config.IRC.ConfigPath)
 	if err != nil {
 		logger.Fatal("Error initializing storage: %v", err)
 	}

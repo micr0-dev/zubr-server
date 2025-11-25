@@ -262,6 +262,14 @@ func (m *Manager) GenerateConfig() error {
 <module name="permchannels">
 <module name="chanhistory">
 
+# IRCv3 extensions
+<module name="cap">
+<module name="ircv3">
+<module name="ircv3_batch">
+<module name="ircv3_servertime">
+<module name="ircv3_msgid">
+<module name="setname">
+
 #-#-#-#-#-#-#-#-#-#-#-  DATABASE  #-#-#-#-#-#-#-#-#-#-#-#-#-
 
 <database

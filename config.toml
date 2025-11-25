@@ -3,7 +3,7 @@ address = "0.0.0.0:3000"
 domain = "zubr.chat"
 
 [storage]
-users_file = "data/users.json"
+database_path = "data/zubr.db"
 
 [irc]
 inspircd_path = "/home/micr0/Documents/inspircd/run/inspircd"
